@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+const API_URL = import.meta.env.VITE_API_URL;
 
 function Login() {
 
@@ -33,7 +34,7 @@ function Login() {
         try {
 
             const response = await fetch(
-                "http://127.0.0.1:8000/auth/login",
+               `${API_URL}/auth/login` ,
                 {
                     method: "POST",
 
@@ -78,7 +79,7 @@ function Login() {
 
 
             const profileResponse = await fetch(
-                "http://127.0.0.1:8000/auth/profile",
+              `${API_URL}/auth/profile` ,
                 {
                     method: "GET",
 
