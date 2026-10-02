@@ -16,6 +16,7 @@ app.add_middleware(
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "https://contract-lens-ai-eight.vercel.app",
+        "https://contract-lens-qsxaz3r2z-kannaujiyapradeep095-2582.vercel.app",
     ],
     allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
