@@ -38,3 +38,5 @@ app.include_router(user_router)
 #auth_api.py router include
 from app.api.auth_api import router as auth_router
 app.include_router(auth_router)
+
+from app.database.create_tables import *
