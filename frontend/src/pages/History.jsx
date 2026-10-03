@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 function History() {
+
+  const API_URL = import.meta.env.VITE_API_URL;
   const navigate = useNavigate();
 
   const [contracts, setContracts] = useState([]);
@@ -15,7 +17,7 @@ function History() {
   const [viewingId, setViewingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
 
-  const API_URL = "http://127.0.0.1:8000";
+
 
   const getToken = () => {
     return localStorage.getItem("access_token");

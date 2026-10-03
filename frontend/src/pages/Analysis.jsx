@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import RiskCard from "../components/RiskCard";
 
 function Analysis() {
+
+  const API_URL = import.meta.env.VITE_API_URL;
   const navigate = useNavigate();
 
   const [analysis] = useState(() => {
@@ -41,8 +43,6 @@ function Analysis() {
   });
 
   const [isDownloading, setIsDownloading] = useState(false);
-
-  const API_URL = "http://127.0.0.1:8000";
 
   const formatDate = (date) => {
     if (!date) {

@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 function Profile() {
+  const API_URL = import.meta.env.VITE_API_URL;
+
   const navigate = useNavigate();
 
   const [isEditing, setIsEditing] = useState(false);
@@ -17,10 +19,6 @@ function Profile() {
     role: "Standard User",
     about: "Using ContractLensAI for secure AI-based legal contract analysis.",
   });
-  // =====================================================
-  // GET USER INITIALS
-  // =====================================================
-
   const getInitials = (name) => {
     if (!name) {
       return "U";
@@ -51,7 +49,7 @@ function Profile() {
 
     const loadProfile = async () => {
       try {
-        const response = await fetch("http://127.0.0.1:8000/auth/profile", {
+        const response = await fetch(`${API_URL}/auth/profile`, {
           method: "GET",
 
           headers: {
@@ -120,7 +118,7 @@ function Profile() {
     setError("");
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/auth/profile", {
+      const response = await fetch(`${API_URL}`, {
         method: "PUT",
 
         headers: {

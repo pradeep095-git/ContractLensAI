@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 function Dashboard() {
+
+  const API_URL = import.meta.env.VITE_API_URL;
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -29,7 +31,7 @@ function Dashboard() {
         return;
       }
 
-      const response = await fetch("http://127.0.0.1:8000/contracts/history", {
+      const response = await fetch(`${API_URL}/contracts/history`, {
         method: "GET",
 
         headers: {
@@ -141,7 +143,7 @@ function Dashboard() {
       }
 
       const response = await fetch(
-        `http://127.0.0.1:8000/contracts/history/${contract.id}`,
+        `${API_URL}/contracts/history/${contract.id}`,
         {
           method: "GET",
 
