@@ -72,11 +72,19 @@ function Analysis() {
     try {
       setIsDownloading(true);
 
+      const token = localStorage.getItem("access_token");
+
       let response;
 
       if (contractId) {
         response = await fetch(
           `${API_URL}/contracts/history/${contractId}/report`,
+          {
+            method:"GET",
+            headers:{
+              Authorization: `Bearer ${token}`,
+            },
+          }
         );
       } else {
         response = await fetch(`${API_URL}/contracts/report`, {
@@ -84,6 +92,7 @@ function Analysis() {
 
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
 
           body: JSON.stringify({

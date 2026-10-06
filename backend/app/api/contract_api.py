@@ -9,7 +9,7 @@ from app.models.user import User
 
 from app.api.auth_api import get_current_user
 
-from app.services.pdf_service import extract_text_from_pdf
+from app.services.pdf_service import extract_text_from_file
 from app.services.ai_service import analyze_contract
 from app.services.report_service import create_analysis_pdf
 
@@ -119,13 +119,22 @@ def upload_contract(
 
   
 
-    if file.content_type != "application/pdf":
+   allowed_extensions = {
+    ".pdf",
+    ".doc",
+    ".docx"
+}
 
-        raise HTTPException(
-            status_code=400,
-            detail="Only PDF files are allowed."
-        )
+file_extension = os.path.splitext(
+    file.filename or ""
+)[1].lower()
 
+if file_extension not in allowed_extensions:
+
+    raise HTTPException(
+        status_code=400,
+        detail="Only PDF, DOC, and DOCX files are allowed."
+    )
     if not file.filename:
 
         raise HTTPException(
@@ -154,7 +163,7 @@ def upload_contract(
 
         raise HTTPException(
             status_code=400,
-            detail="Uploaded PDF is empty."
+            detail="Uploaded contract file is empty."
         )
 
 
@@ -250,7 +259,7 @@ def upload_contract(
 
         raise HTTPException(
             status_code=500,
-            detail="Failed to save uploaded PDF."
+            detail="Failed to save uploaded contract."
         )
 
 
@@ -258,14 +267,14 @@ def upload_contract(
 
     try:
 
-        contract_text = extract_text_from_pdf(
+        contract_text = extract_text_from_file(
             file_location
         )
 
     except Exception as error:
 
         print(
-            "PDF EXTRACTION ERROR:",
+            "FILE EXTRACTION ERROR:",
             repr(error)
         )
 
@@ -276,7 +285,7 @@ def upload_contract(
 
         raise HTTPException(
             status_code=500,
-            detail="Failed to extract text from PDF."
+            detail="Failed to extract text from  the uploaded contract."
         )
 
 
@@ -299,7 +308,7 @@ def upload_contract(
         raise HTTPException(
             status_code=400,
             detail=
-            "PDF uploaded but no readable text was found."
+            "FILE uploaded but no readable text was found."
         )
 
 
@@ -625,14 +634,7 @@ def get_contract_history_item(
 # GET ONE CONTRACT
 
 #
-# This endpoint is added specifically because your current
-# History.jsx calls:
-#
-# /contracts/${contract.id}
-#
-# instead of:
-#
-# /contracts/history/${contract.id}
+
 #
 
 
