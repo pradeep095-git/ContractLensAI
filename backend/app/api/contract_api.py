@@ -11,6 +11,7 @@ from app.services.pdf_service import extract_text_from_file
 from app.services.ai_service import analyze_contract
 from app.services.report_service import create_analysis_pdf
 
+import time
 import hashlib
 import json
 import os
@@ -358,45 +359,157 @@ def upload_contract(
             detail="Failed to save contract in database."
         )
 
-    # 13. AI ANALYSIS
+   
+      # 13. AI ANALYSIS
 
     print(
         "CACHE MISS - Generating NEW AI analysis..."
     )
 
+    analysis = None
+
+    max_retries = 3
+
+    for attempt in range(1, max_retries + 1):
+
+        try:
+
+            print(
+                f"AI ANALYSIS ATTEMPT {attempt}/{max_retries}"
+            )
+
+            analysis = analyze_contract(
+                contract_text
+            )
+
+            print(
+                "AI ANALYSIS SUCCESS"
+            )
+
+            break
+
+        except Exception as error:
+
+            error_text = str(error)
+
+            print(
+                f"AI ANALYSIS ATTEMPT {attempt} FAILED:"
+            )
+
+            print(
+                repr(error)
+            )
+
+            is_temporary_error = (
+                "503" in error_text
+                or
+                "UNAVAILABLE" in error_text
+                or
+                "high demand" in error_text.lower()
+                or
+                "temporarily" in error_text.lower()
+            )
+
+            if (
+                is_temporary_error
+                and
+                attempt < max_retries
+            ):
+
+                wait_time = attempt * 3
+
+                print(
+                    f"Gemini temporarily unavailable. "
+                    f"Retrying in {wait_time} seconds..."
+                )
+
+                time.sleep(
+                    wait_time
+                )
+
+                continue
+
+            print(
+                "AI ANALYSIS FAILED AFTER RETRIES"
+            )
+
+            db.delete(
+                contract
+            )
+
+            db.commit()
+
+            try:
+
+                os.remove(
+                    file_location
+                )
+
+            except OSError:
+
+                pass
+
+            raise HTTPException(
+                status_code=(
+                    503
+                    if is_temporary_error
+                    else 500
+                ),
+                detail=(
+                    "AI service is temporarily unavailable. "
+                    "Please try uploading the contract again."
+                    if is_temporary_error
+                    else
+                    "AI analysis failed."
+                )
+            )
+
+    # 14. NORMALIZE AI RESPONSE
+
+    analysis_for_frontend = normalize_analysis(
+        analysis
+    )
+
+    # 15. SAVE ANALYSIS
+
     try:
 
-        analysis = analyze_contract(
-            contract_text
-        )
-
-    except Exception as error:
-
-        print(
-            "AI ANALYSIS ERROR:",
-            repr(error)
-        )
-
-        db.delete(
-            contract
+        contract.analysis = json.dumps(
+            analysis_for_frontend,
+            ensure_ascii=False
         )
 
         db.commit()
 
-        try:
+        db.refresh(
+            contract
+        )
 
-            os.remove(
-                file_location
-            )
+    except Exception as error:
 
-        except OSError:
+        db.rollback()
 
-            pass
+        print(
+            "ANALYSIS SAVE ERROR:",
+            repr(error)
+        )
 
         raise HTTPException(
             status_code=500,
-            detail="AI analysis failed."
+            detail="Failed to save analysis."
         )
+
+    # 16. RETURN RESULT
+
+    return {
+        "success": True,
+        "message": "Contract uploaded and analyzed successfully.",
+        "contract_id": contract.id,
+        "file_name": safe_filename,
+        "upload_date": get_upload_date(contract),
+        "analysis": analysis_for_frontend,
+        "cached": False
+    }
 
     # 14. NORMALIZE AI RESPONSE
 
