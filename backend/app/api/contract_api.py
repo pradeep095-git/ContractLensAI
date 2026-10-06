@@ -4,9 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.database.database import get_db
 from app.models.contract import Contract
-
 from app.models.user import User
-
 from app.api.auth_api import get_current_user
 
 from app.services.pdf_service import extract_text_from_file
@@ -24,7 +22,6 @@ router = APIRouter(
 )
 
 
-
 def get_default_analysis():
 
     return {
@@ -35,7 +32,6 @@ def get_default_analysis():
         "risky_clauses": [],
         "recommendations": []
     }
-
 
 
 def normalize_analysis(analysis):
@@ -78,11 +74,9 @@ def normalize_analysis(analysis):
     }
 
 
-
 def get_upload_date(contract):
 
     if not contract.filepath:
-
         return None
 
     try:
@@ -109,6 +103,10 @@ def get_upload_date(contract):
     return None
 
 
+# ==========================================================
+# UPLOAD CONTRACT
+# Supports PDF, DOC and DOCX
+# ==========================================================
 
 @router.post("/upload")
 def upload_contract(
@@ -117,24 +115,8 @@ def upload_contract(
     current_user: User = Depends(get_current_user)
 ):
 
-  
+    # 1. CHECK FILE NAME
 
-   allowed_extensions = {
-    ".pdf",
-    ".doc",
-    ".docx"
-}
-
-file_extension = os.path.splitext(
-    file.filename or ""
-)[1].lower()
-
-if file_extension not in allowed_extensions:
-
-    raise HTTPException(
-        status_code=400,
-        detail="Only PDF, DOC, and DOCX files are allowed."
-    )
     if not file.filename:
 
         raise HTTPException(
@@ -142,7 +124,26 @@ if file_extension not in allowed_extensions:
             detail="File name is missing."
         )
 
+    # 2. CHECK FILE TYPE
 
+    allowed_extensions = {
+        ".pdf",
+        ".doc",
+        ".docx"
+    }
+
+    file_extension = os.path.splitext(
+        file.filename
+    )[1].lower()
+
+    if file_extension not in allowed_extensions:
+
+        raise HTTPException(
+            status_code=400,
+            detail="Only PDF, DOC, and DOCX files are allowed."
+        )
+
+    # 3. CREATE USER UPLOAD FOLDER
 
     upload_folder = os.path.join(
         "app",
@@ -155,8 +156,8 @@ if file_extension not in allowed_extensions:
         exist_ok=True
     )
 
+    # 4. READ FILE
 
-  
     file_bytes = file.file.read()
 
     if not file_bytes:
@@ -166,19 +167,18 @@ if file_extension not in allowed_extensions:
             detail="Uploaded contract file is empty."
         )
 
-
-   
+    # 5. CREATE FILE HASH
 
     file_hash = hashlib.sha256(
         file_bytes
     ).hexdigest()
-
 
     print("=" * 70)
     print("FILE NAME :", file.filename)
     print("FILE HASH :", file_hash)
     print("=" * 70)
 
+    # 6. CHECK CACHE
 
     existing_contract = (
         db.query(Contract)
@@ -189,8 +189,6 @@ if file_extension not in allowed_extensions:
         .first()
     )
 
-
-   
     if existing_contract:
 
         print(
@@ -215,7 +213,9 @@ if file_extension not in allowed_extensions:
             existing_contract.file_name,
 
             "upload_date":
-            get_upload_date(existing_contract),
+            get_upload_date(
+                existing_contract
+            ),
 
             "analysis":
             saved_analysis,
@@ -225,19 +225,20 @@ if file_extension not in allowed_extensions:
 
         }
 
+    # 7. SAFE FILE NAME
 
-  
     safe_filename = os.path.basename(
         file.filename
     )
 
+    # 8. FILE LOCATION
 
-   
     file_location = os.path.join(
         upload_folder,
         f"{file_hash}_{safe_filename}"
     )
 
+    # 9. SAVE FILE
 
     try:
 
@@ -262,8 +263,7 @@ if file_extension not in allowed_extensions:
             detail="Failed to save uploaded contract."
         )
 
-
-   
+    # 10. EXTRACT TEXT
 
     try:
 
@@ -279,19 +279,21 @@ if file_extension not in allowed_extensions:
         )
 
         try:
-            os.remove(file_location)
+
+            os.remove(
+                file_location
+            )
+
         except OSError:
+
             pass
 
         raise HTTPException(
             status_code=500,
-            detail="Failed to extract text from  the uploaded contract."
+            detail="Failed to extract text from the uploaded contract."
         )
 
-
-  
     # 11. CHECK READABLE TEXT
-  
 
     if not contract_text or not contract_text.strip():
 
@@ -307,14 +309,10 @@ if file_extension not in allowed_extensions:
 
         raise HTTPException(
             status_code=400,
-            detail=
-            "FILE uploaded but no readable text was found."
+            detail="Uploaded contract contains no readable text."
         )
 
-
-  
     # 12. CREATE DATABASE RECORD
-  
 
     contract = Contract(
 
@@ -327,7 +325,6 @@ if file_extension not in allowed_extensions:
         file_hash=file_hash
 
     )
-
 
     try:
 
@@ -347,8 +344,13 @@ if file_extension not in allowed_extensions:
         )
 
         try:
-            os.remove(file_location)
+
+            os.remove(
+                file_location
+            )
+
         except OSError:
+
             pass
 
         raise HTTPException(
@@ -356,10 +358,7 @@ if file_extension not in allowed_extensions:
             detail="Failed to save contract in database."
         )
 
-
-  
     # 13. AI ANALYSIS
-  
 
     print(
         "CACHE MISS - Generating NEW AI analysis..."
@@ -378,12 +377,20 @@ if file_extension not in allowed_extensions:
             repr(error)
         )
 
-        db.delete(contract)
+        db.delete(
+            contract
+        )
+
         db.commit()
 
         try:
-            os.remove(file_location)
+
+            os.remove(
+                file_location
+            )
+
         except OSError:
+
             pass
 
         raise HTTPException(
@@ -391,19 +398,13 @@ if file_extension not in allowed_extensions:
             detail="AI analysis failed."
         )
 
-
-  
     # 14. NORMALIZE AI RESPONSE
-  
 
     analysis_for_frontend = normalize_analysis(
         analysis
     )
 
-
-  
     # 15. SAVE ANALYSIS TO MYSQL
-  
 
     try:
 
@@ -430,10 +431,7 @@ if file_extension not in allowed_extensions:
             detail="Failed to save analysis."
         )
 
-
-  
     # 16. RETURN RESULT
-  
 
     return {
 
@@ -449,7 +447,9 @@ if file_extension not in allowed_extensions:
         safe_filename,
 
         "upload_date":
-        get_upload_date(contract),
+        get_upload_date(
+            contract
+        ),
 
         "analysis":
         analysis_for_frontend,
@@ -460,14 +460,14 @@ if file_extension not in allowed_extensions:
     }
 
 
-
-# GET DYNAMIC CONTRACT HISTORY
-
+# ==========================================================
+# GET CONTRACT HISTORY
+# ==========================================================
 
 @router.get("/history")
 def get_contract_history(
     db: Session = Depends(get_db),
-     current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
 
     try:
@@ -503,7 +503,9 @@ def get_contract_history(
                 contract.file_name,
 
                 "upload_date":
-                get_upload_date(contract),
+                get_upload_date(
+                    contract
+                ),
 
                 "risk_score":
                 analysis.get(
@@ -524,22 +526,14 @@ def get_contract_history(
                 ),
 
                 "has_analysis":
-                bool(contract.analysis),
+                bool(
+                    contract.analysis
+                ),
 
                 "analysis":
                 analysis
 
             })
-
-
-        # ==================================================
-        # IMPORTANT:
-        #
-        # "history" is the main response.
-        #
-        # "contracts" is also returned so your current
-        # History.jsx can work without immediately breaking.
-        # ==================================================
 
         return {
 
@@ -556,7 +550,6 @@ def get_contract_history(
 
         }
 
-
     except Exception as error:
 
         print(
@@ -571,15 +564,15 @@ def get_contract_history(
         )
 
 
-
+# ==========================================================
 # GET ONE CONTRACT FROM HISTORY
-
+# ==========================================================
 
 @router.get("/history/{contract_id}")
 def get_contract_history_item(
     contract_id: int,
     db: Session = Depends(get_db),
-     current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
 
     contract = (
@@ -591,7 +584,6 @@ def get_contract_history_item(
         .first()
     )
 
-
     if not contract:
 
         raise HTTPException(
@@ -599,11 +591,9 @@ def get_contract_history_item(
             detail="Contract not found."
         )
 
-
     analysis = normalize_analysis(
         contract.analysis
     )
-
 
     return {
 
@@ -622,7 +612,9 @@ def get_contract_history_item(
         contract.filepath,
 
         "upload_date":
-        get_upload_date(contract),
+        get_upload_date(
+            contract
+        ),
 
         "analysis":
         analysis
@@ -630,19 +622,15 @@ def get_contract_history_item(
     }
 
 
-
+# ==========================================================
 # GET ONE CONTRACT
-
-#
-
-#
-
+# ==========================================================
 
 @router.get("/{contract_id}")
 def get_contract(
     contract_id: int,
     db: Session = Depends(get_db),
-     current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
 
     contract = (
@@ -654,7 +642,6 @@ def get_contract(
         .first()
     )
 
-
     if not contract:
 
         raise HTTPException(
@@ -662,11 +649,9 @@ def get_contract(
             detail="Contract not found."
         )
 
-
     analysis = normalize_analysis(
         contract.analysis
     )
-
 
     return {
 
@@ -685,7 +670,9 @@ def get_contract(
         contract.filepath,
 
         "upload_date":
-        get_upload_date(contract),
+        get_upload_date(
+            contract
+        ),
 
         "analysis":
         analysis
@@ -693,9 +680,9 @@ def get_contract(
     }
 
 
-
+# ==========================================================
 # DOWNLOAD REPORT FROM HISTORY
-
+# ==========================================================
 
 @router.get(
     "/history/{contract_id}/report"
@@ -703,7 +690,7 @@ def get_contract(
 def download_history_report(
     contract_id: int,
     db: Session = Depends(get_db),
-     current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
 
     contract = (
@@ -715,14 +702,12 @@ def download_history_report(
         .first()
     )
 
-
     if not contract:
 
         raise HTTPException(
             status_code=404,
             detail="Contract not found."
         )
-
 
     if not contract.analysis:
 
@@ -732,15 +717,11 @@ def download_history_report(
             "Analysis is not available for this contract."
         )
 
-
     analysis = normalize_analysis(
         contract.analysis
     )
 
-
-  
     # REPORT FOLDER
-  
 
     report_folder = "app/reports"
 
@@ -749,10 +730,7 @@ def download_history_report(
         exist_ok=True
     )
 
-
-  
     # SAFE FILE NAME
-  
 
     safe_name = os.path.splitext(
         os.path.basename(
@@ -760,16 +738,12 @@ def download_history_report(
         )
     )[0]
 
-
     output_path = os.path.join(
         report_folder,
         f"{safe_name}_{contract.id}_analysis.pdf"
     )
 
-
-  
     # CREATE PDF
-  
 
     try:
 
@@ -795,10 +769,7 @@ def download_history_report(
             detail="Failed to create PDF report."
         )
 
-
-  
     # RETURN PDF
-  
 
     return FileResponse(
 
@@ -812,9 +783,9 @@ def download_history_report(
     )
 
 
-
+# ==========================================================
 # DELETE CONTRACT FROM HISTORY
-
+# ==========================================================
 
 @router.delete(
     "/history/{contract_id}"
@@ -822,7 +793,7 @@ def download_history_report(
 def delete_contract_history(
     contract_id: int,
     db: Session = Depends(get_db),
-     current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
 
     contract = (
@@ -834,7 +805,6 @@ def delete_contract_history(
         .first()
     )
 
-
     if not contract:
 
         raise HTTPException(
@@ -842,10 +812,7 @@ def delete_contract_history(
             detail="Contract not found."
         )
 
-
-  
-    # DELETE PHYSICAL PDF
-  
+    # DELETE PHYSICAL CONTRACT FILE
 
     if contract.filepath:
 
@@ -866,10 +833,7 @@ def delete_contract_history(
                 repr(error)
             )
 
-
-  
     # DELETE DATABASE RECORD
-  
 
     try:
 
@@ -892,7 +856,6 @@ def delete_contract_history(
             status_code=500,
             detail="Failed to delete contract."
         )
-
 
     return {
 
