@@ -143,6 +143,9 @@ function Profile() {
         id: data.id,
         name: data.name,
         email: data.email,
+        phone: profile.phone,
+        role: profile.role,
+        about: profile.about,
       });
 
       localStorage.setItem("currentUser", JSON.stringify(data));
@@ -270,7 +273,9 @@ function Profile() {
                     type="text"
                     className="form-control"
                     value={profile.role}
-                    disabled
+                    onChange={handleChange}
+                    disabled={!isEditing}
+                   
                   />
                 </div>
 
@@ -281,7 +286,8 @@ function Profile() {
                     className="form-control"
                     rows="3"
                     value={profile.about}
-                    disabled
+                    onChange={handleChange}
+                    disabled={!isEditing}
                   />
                 </div>
 
