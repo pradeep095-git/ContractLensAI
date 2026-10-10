@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
@@ -76,32 +77,10 @@ def normalize_analysis(analysis):
 
 
 def get_upload_date(contract):
-
-    if not contract.filepath:
+    if not contract.upload_date:
         return None
 
-    try:
-
-        if os.path.exists(contract.filepath):
-
-            timestamp = os.path.getmtime(
-                contract.filepath
-            )
-
-            from datetime import datetime
-
-            return datetime.fromtimestamp(
-                timestamp
-            ).isoformat()
-
-    except Exception as error:
-
-        print(
-            "UPLOAD DATE ERROR:",
-            repr(error)
-        )
-
-    return None
+    return contract.upload_date.isoformat()
 
 
 # ==========================================================
